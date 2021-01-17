@@ -1,0 +1,5 @@
+tensorflow
+albumentations
+segmentation-models
+pycocotools
+psutil
