@@ -87,7 +87,7 @@ class CocoDataset:
             images, masks = dataset.readBatch(packetSize)
             if images is None or masks is None:
                 continue
-            for j in range(images.shape[0]):
+            for j in range(len(images)):
                 cv2.imwrite(os.path.join(datasetDir, 'image{}.jpg'.format(i)), images[j])
                 cv2.imwrite(os.path.join(datasetDir, 'mask{}.png'.format(i)), masks[j])
                 i += 1
@@ -96,7 +96,7 @@ class CocoDataset:
 
         images, masks = dataset.readBatch(size - i)
         if not (images is None or masks is None):
-            for j in len(images):
+            for j in range(len(images)):
                 cv2.imwrite(os.path.join(datasetDir, 'image{}.jpg'.format(i)), images[j])
                 cv2.imwrite(os.path.join(datasetDir, 'mask{}.png'.format(i)), masks[j])
                 i += 1
