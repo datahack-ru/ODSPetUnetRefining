@@ -52,8 +52,8 @@ class CocoDataset:
                 if commonMask is None:
                     commonMask = mask
                 else:
-                    commonMask = np.logical_or(commonMask, mask)
-            commonMask = commonMask
+                    commonMask = np.bitwise_or(commonMask, mask)
+            # commonMask = commonMask
 
             if image is not None and commonMask is not None:
                 if image.shape[0] != 480 or image.shape[1] != 640:
