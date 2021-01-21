@@ -14,6 +14,7 @@ def parse_args():
 def main():
     args = parse_args()
     datasetDir = args.datasetDir
+    # datasetDir = '../data' # for debug assign your datafolder
 
     init_logging('prepare.log')
 

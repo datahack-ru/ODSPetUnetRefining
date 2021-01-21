@@ -21,12 +21,14 @@ import broccole.augmentations as augmentations
 
 logger = logging.getLogger(__name__)
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='train U-Net')
-    parser.add_argument('--datasetDir', help='path to directory with dataset', type=str)    
-    parser.add_argument('--trainingDir', help='path to directory to save models', type=str)    
-    parser.add_argument('--modelEncoder', required=False, help='model encoder architecture type', type=str, default="resnet18")
-    parser.add_argument('--batchSize', help='batch size', type=int, default=1)
+    parser.add_argument('--datasetDir', help='path to directory with dataset', type=str)
+    parser.add_argument('--trainingDir', help='path to directory to save models', type=str)
+    parser.add_argument('--modelEncoder', required=False, help='model encoder architecture type', type=str,
+                        default="resnet18")
+    parser.add_argument('--batchSize', help='batch size', type=int, default=8)
     parser.add_argument('--epochs', help='epochs count', type=int, default=1)
     parser.add_argument('--startEpoch', help='start epoch', type=int, default=0)
     parser.add_argument('--learningRate', help='learning rate', type=float, default=0.001)
@@ -34,23 +36,27 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 def save_model(model, trainingDir, modelEncoder, packetIndex):
     now = datetime.now()
-    weightsPath = os.path.join(trainingDir, "u-net-{}_{}_{}-{}-{}_{}.chpt".format(modelEncoder, now.day, now.hour, now.minute, now.second, packetIndex))
+    weightsPath = os.path.join(trainingDir,
+                               "u-net-{}_{}_{}-{}-{}_{}.chpt".format(modelEncoder, now.day, now.hour, now.minute,
+                                                                     now.second, packetIndex))
     model.save_weights(weightsPath)
     logger.info('model saved at %s', weightsPath)
 
+
 def train(
-    model, preprocess_input,
-    humanDataset: SegmentationDataset,
-    nonHumanDataset: SegmentationDataset,
-    valHumanDataset: SegmentationDataset,
-    valNonHumanDataset: SegmentationDataset,
-    trainingDir: str,
-    modelEncoder: str,
-    batchSize: int = 1,
-    epochs: int = 1,
-    startEpoch: int = 0
+        model, preprocess_input,
+        humanDataset: SegmentationDataset,
+        nonHumanDataset: SegmentationDataset,
+        valHumanDataset: SegmentationDataset,
+        valNonHumanDataset: SegmentationDataset,
+        trainingDir: str,
+        modelEncoder: str,
+        batchSize: int = 1,
+        epochs: int = 1,
+        startEpoch: int = 0
 ):
     imageSize = 224
 
@@ -65,7 +71,7 @@ def train(
 
     checkPointPath = os.path.join(trainingDir, 'u-net-{}.chpt'.format(modelEncoder))
     checkPointCallback = tf.keras.callbacks.ModelCheckpoint(filepath=checkPointPath,
-                                                verbose=1)
+                                                            verbose=1)
 
     packetSize = 8 * 8
 
@@ -81,17 +87,18 @@ def train(
         callbacks=[checkPointCallback]
     )
 
+
 def explicitTrain(
-    model, preprocess_input,
-    humanDataset: SegmentationDataset,
-    nonHumanDataset: SegmentationDataset,
-    valHumanDataset: SegmentationDataset,
-    valNonHumanDataset: SegmentationDataset,
-    trainingDir: str,
-    modelEncoder: str,
-    batchSize: int = 1,
-    epochs: int = 1,
-    startEpoch: int = 0
+        model, preprocess_input,
+        humanDataset: SegmentationDataset,
+        nonHumanDataset: SegmentationDataset,
+        valHumanDataset: SegmentationDataset,
+        valNonHumanDataset: SegmentationDataset,
+        trainingDir: str,
+        modelEncoder: str,
+        batchSize: int = 1,
+        epochs: int = 1,
+        startEpoch: int = 0
 ):
     imageSize = 224
 
@@ -122,19 +129,24 @@ def explicitTrain(
             for packetIndex in range(packets - 1):
                 logger.debug('reading batch, memory used %f', usedMemory())
                 x_train_h, y_train_h = humanDataset.readBatch(packetSize)
-                x_train_h, y_train_h = augmentations.appendTransforms(x_train_h, y_train_h, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
+                x_train_h, y_train_h = augmentations.appendTransforms(x_train_h, y_train_h,
+                                                                      augmentations.train_transforms_after_resize,
+                                                                      augmentations.resize_transforms(imageSize))
                 logger.debug('reading human batch, memory used %f', usedMemory())
                 x_train_nh, y_train_nh = nonHumanDataset.readBatch(nonHumanPacketSize)
-                x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
+                x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh,
+                                                                        augmentations.train_transforms_after_resize,
+                                                                        augmentations.resize_transforms(imageSize))
                 logger.debug('reading nonHuman batch, memory used %f', usedMemory())
-                x_train, y_train = HumanDatasetSequence.shuffleHumanNonHuman(x_train_h, x_train_nh, y_train_h, y_train_nh)
-                x_train = np.concatenate((x_train, ))
-                y_train = np.concatenate((y_train, ))
+                x_train, y_train = HumanDatasetSequence.shuffleHumanNonHuman(x_train_h, x_train_nh, y_train_h,
+                                                                             y_train_nh)
+                x_train = np.concatenate((x_train,))
+                y_train = np.concatenate((y_train,))
                 del x_train_h
                 del x_train_nh
                 del y_train_h
                 del y_train_nh
-                logger.debug('concatenate batches, memory used %f', usedMemory())            
+                logger.debug('concatenate batches, memory used %f', usedMemory())
                 x_train = preprocess_input(x_train)
                 # x_train = x_train / 255
                 logger.debug('preprocess x_train, memory used %f', usedMemory())
@@ -154,19 +166,24 @@ def explicitTrain(
                     save_model(model, trainingDir, modelEncoder, packetIndex)
                 del x_train
                 del y_train
-                logger.debug('trained on %d samples, memory used %f', humanDataset.index + nonHumanDataset.index, usedMemory())
+                logger.debug('trained on %d samples, memory used %f', humanDataset.index + nonHumanDataset.index,
+                             usedMemory())
                 gc.collect()
                 # objgraph.show_most_common_types(limit=50)
                 # obj = objgraph.by_type('list')[1000]
                 # objgraph.show_backrefs(obj, max_depth=10)
 
             x_train_h, y_train_h = humanDataset.readBatch(packetSize)
-            x_train_h, y_train_h = augmentations.appendTransforms(x_train_h, y_train_h, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
+            x_train_h, y_train_h = augmentations.appendTransforms(x_train_h, y_train_h,
+                                                                  augmentations.train_transforms_after_resize,
+                                                                  augmentations.resize_transforms(imageSize))
             x_train_nh, y_train_nh = nonHumanDataset.readBatch(nonHumanPacketSize)
-            x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
+            x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh,
+                                                                    augmentations.train_transforms_after_resize,
+                                                                    augmentations.resize_transforms(imageSize))
             x_train, y_train = HumanDatasetSequence.shuffleHumanNonHuman(x_train_h, x_train_nh, y_train_h, y_train_nh)
-            x_train = np.concatenate((x_train, ))
-            y_train = np.concatenate((y_train, ))
+            x_train = np.concatenate((x_train,))
+            y_train = np.concatenate((y_train,))
             del x_train_h
             del x_train_nh
             del y_train_h
@@ -197,7 +214,9 @@ def explicitTrain(
         model.save(modelPath)
         logger.info('model saved')
 
-def loadCocoDataset(cocoAnnotations, datasetDir: str, classes: List = None, nonClasses: List = None, shuffle: bool = False):
+
+def loadCocoDataset(cocoAnnotations, datasetDir: str, classes: List = None, nonClasses: List = None,
+                    shuffle: bool = False):
     datasetBuilder = CocoDatasetBuilder(datasetDir, cocoAnnotations=cocoAnnotations)
     if nonClasses is not None:
         datasetBuilder.selectAll().filterNonClasses(nonClasses)
@@ -208,12 +227,14 @@ def loadCocoDataset(cocoAnnotations, datasetDir: str, classes: List = None, nonC
     gc.collect()
     return dataset
 
+
 def openSegmentationDatasets(datasetDir: str):
     humanDataset = SegmentationDataset(os.path.join(datasetDir, 'human'), 61600, shuffle=True)
     nonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'nonHuman'), 28320, shuffle=True)
     valHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valHuman'), 2693, shuffle=True)
     valNonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valNonHuman'), 2259, shuffle=True)
     return humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset
+
 
 def main():
     init_logging('training.log')
@@ -246,7 +267,9 @@ def main():
         logger.info('model weights from %s are loaded', checkpointFilePath)
 
     humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset = openSegmentationDatasets(datasetDir)
-    explicitTrain(model, preprocess_input, humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset, trainingDir, modelEncoder, args.batchSize, args.epochs, args.startEpoch)
+    explicitTrain(model, preprocess_input, humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset,
+                  trainingDir, modelEncoder, args.batchSize, args.epochs, args.startEpoch)
+
 
 if __name__ == '__main__':
     main()

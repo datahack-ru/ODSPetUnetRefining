@@ -11,6 +11,7 @@ import broccole.augmentations as augmentations
 
 logger = logging.getLogger(__name__)
 
+
 def inference(modelFilePath: str):
     imageSize = 224
 
@@ -42,15 +43,15 @@ def inference(modelFilePath: str):
 
         imgs = np.stack(imgs)
 
-        masks = sess.run(None, { input_name: imgs })[0]
-        
+        masks = sess.run(None, {input_name: imgs})[0]
+
         inferenceTime.end()
 
         for i in range(masks.shape[0]):
             image = imgs[i]
             mask = masks[i]
             threshold = np.copy(mask)
-            maskThreshold = 0.3 # 150 / 255
+            maskThreshold = 0.3  # 150 / 255
             binaryMask = mask[:, :, :] < maskThreshold
             threshold[binaryMask] = 0.0
             threshold[~binaryMask] = 1.0
@@ -77,6 +78,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 def main():
     init_logging('webcamInferenceOnnx.log')
 
@@ -84,6 +86,7 @@ def main():
     modelFilePath = args.modelFilePath
 
     inference(modelFilePath)
+
 
 if __name__ == '__main__':
     main()

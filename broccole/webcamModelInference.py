@@ -12,6 +12,7 @@ import broccole.augmentations as augmentations
 
 logger = logging.getLogger(__name__)
 
+
 def inference(model):
     imageSize = 224
     totalTime = Timer('total time', 10)
@@ -41,7 +42,7 @@ def inference(model):
             image = imgs[i]
             mask = masks[i]
             threshold = np.copy(mask)
-            maskThreshold = 0.3 # 150 / 255
+            maskThreshold = 0.3  # 150 / 255
             binaryMask = mask[:, :, :] < maskThreshold
             threshold[binaryMask] = 0.0
             threshold[~binaryMask] = 1.0
@@ -61,17 +62,19 @@ def inference(model):
 
     cv2.destroyAllWindows()
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='inference U-Net on webcam')
     parser.add_argument('--modelFilePath', help='path to load/save model', type=str)
     args = parser.parse_args()
     return args
 
+
 def main():
     init_logging('webcamInference.log')
 
     args = parse_args()
-    modelFilePath = args.modelFilePath    
+    modelFilePath = args.modelFilePath
 
     model = tf.keras.models.load_model(
         modelFilePath,
