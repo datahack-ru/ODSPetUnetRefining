@@ -11,6 +11,7 @@ import gc
 import logging
 from datetime import datetime
 from typing import List
+import traceback
 
 from broccole.CocoDatasetBuilder import CocoDatasetBuilder
 from broccole.SegmentationDataset import SegmentationDataset
@@ -205,6 +206,7 @@ def explicitTrain(
             logger.info('epoch %d is trained', epoch)
         except Exception as e:
             logger.error('Exception %s', str(e))
+            traceback.print_exc()
             return
 
         now = datetime.now()
