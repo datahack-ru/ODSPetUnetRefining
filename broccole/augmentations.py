@@ -162,7 +162,7 @@ def appendTransforms(images, masks, transforms, resize_transforms = None, post_o
             'mask': masks[i]
         }
         if resize_transforms is not None:
-            data = resize_transforms(**data)
+            data = compose([resize_transforms])(**data)
             resizedData = post_only_transforms(**data)
             images[i] = resizedData['image'].astype(np.float32)
             masks[i] = resizedData['mask'].astype(np.float32)
