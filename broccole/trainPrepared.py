@@ -199,7 +199,7 @@ def explicitTrain(
                 epochs=1,
                 validation_data=(x_val, y_val)
             )
-            save_model(model, trainingDir, packets - 1)
+            save_model(model, trainingDir, modelEncoder, packets - 1)
 
             del x_train
             del y_train
