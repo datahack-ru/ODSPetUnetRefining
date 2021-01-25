@@ -38,7 +38,7 @@ class HumanDatasetSequence(tf.keras.utils.Sequence):
         x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
         logger.debug('reading nonHuman batch, memory used %f', usedMemory())
         self.elementsReadCount += self.packetSize + self.nonHumanPacketSize
-        x_train, y_train = shuffleHumanNonHuman(x_train_h, x_train_nh, y_train_h, y_train_nh)
+        x_train, y_train = HumanDatasetSequence.shuffleHumanNonHuman(x_train_h, x_train_nh, y_train_h, y_train_nh)
         x_train = np.concatenate((x_train, ))
         y_train = np.concatenate((y_train, ))
 
