@@ -8,7 +8,7 @@ def pre_transforms(image_size=224):
 def hard_transforms():
     result = [
       albu.RandomRotate90(),
-      albu.CoarseDropout(),# Cutout(),
+      albu.CoarseDropout(),
       albu.RandomBrightnessContrast(
           brightness_limit=0.2, contrast_limit=0.2, p=0.3
       ),
@@ -28,7 +28,7 @@ def hard_transforms_2():
             albu.IAAAdditiveGaussianNoise(),
             albu.GaussNoise(),
         ], p=0.2),
-      albu.CoarseDropout(),# Cutout(),
+      albu.CoarseDropout(),
       albu.OneOf(
         [
         #   albu.MotionBlur(p=0.2),
