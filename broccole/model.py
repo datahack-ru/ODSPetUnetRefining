@@ -10,7 +10,7 @@ def makeModel(optimizer='Adam', encoder = 'resnet18', encoder_freeze=False):
     model.compile(
         optimizer=optimizer,
         loss=sm.losses.bce_jaccard_loss,
-        metrics=[sm.metrics.iou_score],
+        metrics=[sm.metrics.iou_score]
     )
 
     return model, preprocess_input

@@ -1,10 +1,9 @@
 import argparse
-import os
 import cv2
 import numpy as np
-import tensorflow as tf
 import logging
-import time
+import segmentation_models as sm
+import tensorflow as tf
 
 from broccole.Timer import Timer
 from broccole.logUtils import init_logging
@@ -78,7 +77,8 @@ def main():
 
     model = tf.keras.models.load_model(
         modelFilePath,
-        compile=False
+        compile=False,
+        custom_objects={'iou_score': sm.metrics.iou_score}
     )
 
     # model = tf.saved_model.load(modelFilePath)

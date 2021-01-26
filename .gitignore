@@ -5,6 +5,7 @@
 
 data/
 logs/
+venv/
 
 # Node artifact files
 node_modules/
@@ -51,3 +52,5 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
+*.zip
+*.cfg

@@ -1,17 +1,19 @@
-import segmentation_models as sm
+# import segmentation_models as sm
+# import objgraph
+# import cv2
+# import json
 
 import argparse
 import os
-import json
-import cv2
 import tensorflow as tf
 import numpy as np
 import gc
-# import objgraph
 import logging
 from datetime import datetime
 from typing import List
 import traceback
+
+from tensorflow.python.keras.callbacks import CSVLogger
 
 from broccole.CocoDatasetBuilder import CocoDatasetBuilder
 from broccole.SegmentationDataset import SegmentationDataset
@@ -116,9 +118,10 @@ def explicitTrain(
     # checkPointCallback = tf.keras.callbacks.ModelCheckpoint(filepath=checkPointPath,
     #                                             save_weights_only=True,
     #                                             verbose=1)
-
+    SAVE_AFTER_NUMBER = 50000
     packetSize = 16 * 16
     nonHumanPacketSize = max((packetSize * len(nonHumanDataset)) // len(humanDataset), 1)
+    csv_logger = CSVLogger('training.log')
 
     for epoch in range(startEpoch, epochs):
         logger.info('epoch %d', epoch)
@@ -152,7 +155,7 @@ def explicitTrain(
                 # x_train = x_train / 255
                 logger.debug('preprocess x_train, memory used %f', usedMemory())
 
-                saveModel = ((humanDataset.index + nonHumanDataset.index) % 50000) < (packetSize + nonHumanPacketSize)
+                saveModel = ((humanDataset.index + nonHumanDataset.index) % SAVE_AFTER_NUMBER) < (packetSize + nonHumanPacketSize)
 
                 logger.debug('start train on %d samples, memory used %f', len(x_train), usedMemory())
                 model.fit(
@@ -162,6 +165,7 @@ def explicitTrain(
                     epochs=epoch + 1,
                     initial_epoch=epoch,
                     validation_data=(x_val, y_val),
+                    callbacks=[csv_logger]
                 )
                 if saveModel:
                     save_model(model, trainingDir, modelEncoder, packetIndex)
@@ -197,7 +201,8 @@ def explicitTrain(
                 y=y_train,
                 batch_size=batchSize,
                 epochs=1,
-                validation_data=(x_val, y_val)
+                validation_data=(x_val, y_val),
+                callbacks=[csv_logger]
             )
             save_model(model, trainingDir, modelEncoder, packets - 1)
 
