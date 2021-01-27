@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import cv2
 
+from broccole.SegmentationDataset import SegmentationDataset
 from broccole.logUtils import init_logging
 from broccole.trainPrepared import parse_args, openSegmentationDatasets
 from broccole.model import makeModel
@@ -30,21 +31,37 @@ def iou_coef(y_true, y_pred, smooth=1):
     return iou
 
 
-def save_images(indices, pred, datadir):
-    folder = Path(datadir, 'bad_predictions_', date.today().strftime('%Y-%m-%d_%H-%M-%S'))
+def save_images(indices, pred, data_dir):
+    """
+    Save the worst images and predicted masks to ./bad_predictions_{TIMESTAMP} folder.
+    :param indices: Indices of bad images.
+    :param pred: Predicted masks.
+    :param data_dir: Data path.
+    :return: None
+    """
+    folder = Path(data_dir, 'bad_predictions_', date.today().strftime('%Y-%m-%d_%H-%M-%S'))
     Path(folder).mkdir(exist_ok=True)  # create new folder for the images
-    val_human_path = Path(datadir, 'valHuman')
+    val_human_path = Path(data_dir, 'valHuman')
     val_images = list(val_human_path.glob('*.jpg'))  # get a list of all images in the folder
     for i in indices:
         img_name = val_images[i]
         shutil.move(Path(val_human_path, img_name), Path(folder))  # move image
         mask_name = 'mask' + img_name[:5]
         shutil.move(Path(val_human_path, mask_name), Path(folder))  # move mask
-        pred_name = 'pred' + img_name[:5][:-4]
+        pred_name = 'pred' + img_name[:5][:-4] + '.jpg'
         cv2.imwrite(Path(val_human_path, pred_name), pred[i, :, :].numpy())  # save predicted mask
 
 
-def evaluate(model, val_human, datadir, k=30):
+def evaluate(model, val_human, data_dir, k=30):
+    """
+    Predict masks and save the worst ones.
+
+    :param model: Model instance.
+    :param val_human: Validation human data.
+    :param data_dir: Data path.
+    :param k: Number of images to save.
+    :return: None
+    """
     logging.debug('Evaluation started')
     predictions = []
     masks = []
@@ -61,7 +78,7 @@ def evaluate(model, val_human, datadir, k=30):
     masks_tf = tf.concat(masks, axis=0)
     scores = iou_coef(masks_tf, predictions_tf)
     indices = tf.argsort(scores)[:k]  # indices of the worst predicted images
-    save_images(indices, predictions_tf, datadir)
+    save_images(indices, predictions_tf, data_dir)
 
 
 def main():
