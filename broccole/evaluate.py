@@ -56,7 +56,6 @@ def save_images(indices, pred, data_dir):
     val_images = list(val_human_path.glob('*.jpg'))  # get a list of all images in the folder
     for i in indices:
         img_name = str(val_images[i].name)
-        print(img_name)
         shutil.move(str(Path(val_human_path, img_name)), str(Path(folder)))  # move image
         mask_name = 'mask' + img_name[5:][:-4] + '.png'
         shutil.move(str(Path(val_human_path, mask_name)), str(Path(folder)))  # move mask
@@ -94,6 +93,7 @@ def evaluate(model, val_human, data_dir, k=30):
     scores = iou_coef(masks_tf, predictions_tf)
     indices = tf.argsort(scores)[:k]  # indices of the worst predicted images
     save_images(indices, predictions_tf, data_dir)
+    logging.debug('Evaluation ended')
 
 
 def main():
