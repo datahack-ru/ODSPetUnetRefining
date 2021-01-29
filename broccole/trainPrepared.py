@@ -122,7 +122,7 @@ def explicitTrain(
     SAVE_AFTER_NUMBER = 50000
     packetSize = 16 * 16
     nonHumanPacketSize = max((packetSize * len(nonHumanDataset)) // len(humanDataset), 1)
-    csv_logger = CSVLogger('training.log')
+    csv_logger = CSVLogger('training.log', append=True)
 
     for epoch in range(startEpoch, epochs):
         logger.info('epoch %d', epoch)
