@@ -157,9 +157,6 @@ def explicitTrain(
                 # x_train = x_train / 255
                 logger.debug('preprocess x_train, memory used %f', usedMemory())
 
-                saveModel = ((humanDataset.index + nonHumanDataset.index) % SAVE_AFTER_NUMBER) < (
-                            packetSize + nonHumanPacketSize)
-
                 logger.debug('start train on %d samples, memory used %f', len(x_train), usedMemory())
                 model.fit(
                     x=x_train,
@@ -170,8 +167,12 @@ def explicitTrain(
                     validation_data=(x_val, y_val),
                     callbacks=[csv_logger]
                 )
+
+                saveModel = ((humanDataset.index + nonHumanDataset.index) % SAVE_AFTER_NUMBER) < (
+                            packetSize + nonHumanPacketSize)
                 if saveModel:
                     save_model(model, trainingDir, modelEncoder, packetIndex)
+
                 del x_train
                 del y_train
                 logger.debug('trained on %d samples, memory used %f', humanDataset.index + nonHumanDataset.index,
@@ -211,6 +212,7 @@ def explicitTrain(
 
             del x_train
             del y_train
+            gc.collect()
             logger.info('epoch %d is trained', epoch)
         except Exception as e:
             logger.error('Exception %s', str(e))
