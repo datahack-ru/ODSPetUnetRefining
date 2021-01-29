@@ -62,7 +62,7 @@ def hard_transforms_2():
         ],
         p=0.2
       ),
-      albu.HueSaturationValue(p=0.3),
+      albu.HueSaturationValue(p=0.3)
     ]
 
     return result
@@ -77,7 +77,6 @@ def resize_transforms(image_size=224):
       albu.RandomCrop(
           image_size, image_size, p=1
       )
-
     ])
 
     rescale = albu.Compose([albu.Resize(image_size, image_size, p=1)])
@@ -87,17 +86,18 @@ def resize_transforms(image_size=224):
       albu.RandomCrop(
           image_size, image_size, p=1
       )
-
     ])
 
     # Converts the image to a square of size image_size x image_size
-    result = [
-      albu.OneOf([
-          random_crop,
-          rescale,
-          random_crop_big
-      ], p=1)
-    ]
+    # result = [
+    #   albu.OneOf([
+    #       random_crop,
+    #       rescale,
+    #       random_crop_big
+    #   ], p=1)
+    # ]
+
+    result = [albu.RandomCrop(image_size, image_size, p=1)]
 
     return result
 
