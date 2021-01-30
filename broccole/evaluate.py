@@ -11,8 +11,16 @@ from broccole.SegmentationDataset import SegmentationDataset
 from broccole.logUtils import init_logging
 from broccole.trainPrepared import parse_args, openSegmentationDatasets
 from broccole.model import makeModel
+from broccole.augmentations import applyTransforms, valid_transforms
 
 logger = logging.getLogger(__name__)
+# gpus = tf.config.experimental.list_physical_devices('GPU')
+# if gpus:
+#     try:
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#     except RuntimeError as e:
+#         print(e)
 
 
 def iou_coef(y_true, y_pred, smooth=1):
@@ -25,9 +33,12 @@ def iou_coef(y_true, y_pred, smooth=1):
     :param smooth: smoothness coefficient
     :return: IoU score
     """
-    intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=[1, 2])
-    union = tf.keras.backend.sum(y_true, [1, 2]) + tf.keras.backend.sum(y_pred, [1, 2]) - intersection
-    iou = tf.keras.backend.mean((intersection + smooth) / (union + smooth), axis=0)
+    iou = []
+    for i in range(y_true.shape[0]):
+        intersection = tf.math.reduce_sum(tf.math.abs(y_true[i, :, :] * y_pred[i, :, :]))
+        union = tf.math.reduce_sum(y_true[i, :, :]) + tf.math.reduce_sum(y_pred[i, :, :]) - intersection
+        iou.append((intersection + smooth) / (union + smooth))
+
     return iou
 
 
@@ -39,17 +50,17 @@ def save_images(indices, pred, data_dir):
     :param data_dir: Data path.
     :return: None
     """
-    folder = Path(data_dir, 'bad_predictions_', date.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    folder = Path(data_dir, 'bad_predictions_' + date.today().strftime('%Y-%m-%d_%H-%M-%S'))
     Path(folder).mkdir(exist_ok=True)  # create new folder for the images
     val_human_path = Path(data_dir, 'valHuman')
     val_images = list(val_human_path.glob('*.jpg'))  # get a list of all images in the folder
     for i in indices:
-        img_name = val_images[i]
-        shutil.move(Path(val_human_path, img_name), Path(folder))  # move image
-        mask_name = 'mask' + img_name[:5]
-        shutil.move(Path(val_human_path, mask_name), Path(folder))  # move mask
-        pred_name = 'pred' + img_name[:5][:-4] + '.jpg'
-        cv2.imwrite(Path(val_human_path, pred_name), pred[i, :, :].numpy())  # save predicted mask
+        img_name = str(val_images[i].name)
+        shutil.move(str(Path(val_human_path, img_name)), str(Path(folder)))  # move image
+        mask_name = 'mask' + img_name[5:][:-4] + '.png'
+        shutil.move(str(Path(val_human_path, mask_name)), str(Path(folder)))  # move mask
+        pred_name = 'pred' + img_name[5:][:-4] + '.png'
+        cv2.imwrite(str(Path(folder, pred_name)), pred[i, :, :].numpy())  # save predicted mask
 
 
 def evaluate(model, val_human, data_dir, k=30):
@@ -65,20 +76,24 @@ def evaluate(model, val_human, data_dir, k=30):
     logging.debug('Evaluation started')
     predictions = []
     masks = []
-    batch_size = 64
+    batch_size = 8
     limit = len(val_human) // batch_size
 
     for i in range(limit - 1):  # iterate over validation data
         imgs_, masks_ = val_human.readBatch(batch_size)
+        imgs_, masks_ = applyTransforms(imgs_, masks_, valid_transforms(224))
+        imgs_ = np.stack(imgs_)
         pred = model.predict(imgs_)
         predictions.append(pred)
         masks.append(masks_)
 
     predictions_tf = tf.concat(predictions, axis=0)
     masks_tf = tf.concat(masks, axis=0)
+    print(masks_tf.shape)
     scores = iou_coef(masks_tf, predictions_tf)
     indices = tf.argsort(scores)[:k]  # indices of the worst predicted images
     save_images(indices, predictions_tf, data_dir)
+    logging.debug('Evaluation ended')
 
 
 def main():
