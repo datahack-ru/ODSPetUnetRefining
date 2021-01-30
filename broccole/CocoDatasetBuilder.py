@@ -1,10 +1,7 @@
 import json
-import cv2
-import os
 import random
-import numpy as np
 from typing import List
-from pycocotools import mask as cocoMask
+# from pycocotools import mask as cocoMask
 import logging
 
 logger = logging.getLogger(__name__)

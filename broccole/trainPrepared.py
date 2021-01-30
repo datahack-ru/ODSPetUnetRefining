@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('--batchSize', help='batch size', type=int, default=8)
     parser.add_argument('--epochs', help='epochs count', type=int, default=1)
     parser.add_argument('--startEpoch', help='start epoch', type=int, default=0)
-    parser.add_argument('--learningRate', help='learning rate', type=float, default=3e-4)#0.001)
+    parser.add_argument('--learningRate', help='learning rate', type=float, default=0.001) #1e-4)
     parser.add_argument('--checkpointFilePath', help='path to checkpoint', type=str)
     args = parser.parse_args()
     return args
@@ -47,6 +47,7 @@ def save_model(model, trainingDir, modelEncoder, packetIndex):
                                "u-net-{}_{}_{}-{}-{}_{}.chpt".format(modelEncoder, now.day, now.hour, now.minute,
                                                                      now.second, packetIndex))
     model.save_weights(weightsPath)
+    # model.save(weightsPath)
     logger.info('model saved at %s', weightsPath)
 
 
@@ -60,9 +61,10 @@ def train(
         modelEncoder: str,
         batchSize: int = 1,
         epochs: int = 1,
-        startEpoch: int = 0
+        startEpoch: int = 0,
+        imageSize = 224
 ):
-    imageSize = 224
+
 
     validationPacketSize = 16 * 16
     x_val_h, y_val_h = valHumanDataset.readBatch(validationPacketSize)
@@ -100,7 +102,7 @@ def explicitTrain(
         valNonHumanDataset: SegmentationDataset,
         trainingDir: str,
         modelEncoder: str,
-        imageSize=224,
+        imageSize = 224,
         batchSize: int = 1,
         epochs: int = 1,
         startEpoch: int = 0
@@ -177,7 +179,8 @@ def explicitTrain(
                 del y_train
                 logger.debug('trained on %d samples, memory used %f', humanDataset.index + nonHumanDataset.index,
                              usedMemory())
-                gc.collect()
+                # gc.collect()
+
                 # objgraph.show_most_common_types(limit=50)
                 # obj = objgraph.by_type('list')[1000]
                 # objgraph.show_backrefs(obj, max_depth=10)
@@ -284,10 +287,10 @@ def main():
     model, preprocess_input = makeModel(optimizer, modelEncoder)
     if checkpointFilePath is not None:
         model.load_weights(checkpointFilePath)
+        # model = tf.saved_model.load(checkpointFilePath)
         logger.info('model weights from %s are loaded', checkpointFilePath)
 
-    humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset = openSegmentationDatasets(datasetDir)
-                                                                                            #,train_nh_number=0)
+    humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset = openSegmentationDatasets(datasetDir)   #,train_nh_number=0)
     explicitTrain(model, preprocess_input, humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset,
                     trainingDir, modelEncoder, imageSize=320, batchSize=args.batchSize,
                     epochs=args.epochs, startEpoch=args.startEpoch

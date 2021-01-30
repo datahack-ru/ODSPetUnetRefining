@@ -12,8 +12,7 @@ import broccole.augmentations as augmentations
 logger = logging.getLogger(__name__)
 
 
-def inference(model):
-    imageSize = 224
+def inference(model, imageSize = 224):
     totalTime = Timer('total time', 10)
     readFrameTime = Timer('read frame', 10)
     inferenceTime = Timer('inference', 10)
@@ -85,7 +84,7 @@ def main():
 
     print("model summary\n{}".format(model.summary()))
 
-    inference(model)
+    inference(model, imageSize=320)
 
 
 if __name__ == '__main__':
