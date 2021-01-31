@@ -6,6 +6,8 @@ import json
 import cv2
 import tensorflow as tf
 import numpy as np
+import gc
+import traceback
 
 from broccole.logUtils import init_logging, usedMemory
 from broccole.SegmentationDataset import SegmentationDataset
@@ -14,6 +16,12 @@ from broccole.model import makeModel
 import broccole.augmentations as augmentations
 
 logger = logging.getLogger(__name__)
+
+def setFixedSize(x, y, width: int = 640, height: int = 480):
+    for i in range(len(x)):
+        x[i] = cv2.resize(x[i], (width, height))
+        y[i] = cv2.resize(y[i], (width, height)).reshape(height, width, 1)
+    return x, y
 
 def save_model(model, trainingDir, modelEncoder, packetIndex):
     now = datetime.now()
@@ -55,6 +63,7 @@ def explicitTrain(
     activeLearningImagesPerPacket = activeLearningRepeatCount * packetSize * len(activeLearningDataset) / len(humanDataset)
     activeLearningImagesRead = 0
     activeLearningImagesNeedToRead = 0
+    print("activeLearningImagesPerPacket {}".format(activeLearningImagesPerPacket))
 
     for epoch in range(startEpoch, epochs):
         logger.info('epoch %d', epoch)
@@ -76,21 +85,36 @@ def explicitTrain(
                 activeLearningImagesNeedToRead += activeLearningImagesPerPacket
                 if activeLearningImagesNeedToRead - activeLearningImagesRead >= 1:
                     activeLearningImagesPacketSize = int(activeLearningImagesNeedToRead - activeLearningImagesRead)
-                    if activeLearningImagesPacketSize > len(activeLearningDataset) - activeLearningDataset.index:
-                        remaining = len(activeLearningDataset) - activeLearningDataset.index
+                    remaining = len(activeLearningDataset) - activeLearningDataset.index
+                    print("activeLearningImagesPacketSize {}, index {}, remaining {}".format(activeLearningImagesPacketSize, activeLearningDataset.index, remaining))
+                    if activeLearningImagesPacketSize > remaining:
                         x_train_a1, y_train_a1 = activeLearningDataset.readBatch(remaining)
+                        x_train_a1, y_train_a1 = setFixedSize(x_train_a1, y_train_a1)
+                        x_train_a1, y_train_a1 = augmentations.appendTransforms(x_train_a1, y_train_a1, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
                         activeLearningDataset.reset()
                         x_train_a2, y_train_a2 = activeLearningDataset.readBatch(activeLearningImagesPacketSize - remaining)
+                        x_train_a2, y_train_a2 = setFixedSize(x_train_a2, y_train_a2)
+                        x_train_a2, y_train_a2 = augmentations.appendTransforms(x_train_a2, y_train_a2, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
                         x_train_a = x_train_a1 + x_train_a2
                         y_train_a = y_train_a1 + y_train_a2
                     else:
                         x_train_a, y_train_a = activeLearningDataset.readBatch(activeLearningImagesPacketSize)
+                        x_train_a, y_train_a = setFixedSize(x_train_a, y_train_a)
+                        x_train_a, y_train_a = augmentations.appendTransforms(x_train_a, y_train_a, augmentations.train_transforms_after_resize, augmentations.resize_transforms(imageSize))
                     
+                    cv2.imshow("imageA", x_train_a[0])
+                    cv2.imshow("maskA", y_train_a[0] * 255)
+                    cv2.waitKey(1)
+
                     activeLearningImagesRead += activeLearningImagesPacketSize
+                    print("activeLearningImagesRead {}".format(activeLearningImagesRead))
                     x_train = np.concatenate((x_train, x_train_a))
                     y_train = np.concatenate((y_train, y_train_a))
-                x_train = np.concatenate((x_train, ))
-                y_train = np.concatenate((y_train, ))
+                    del x_train_a
+                    del y_train_a
+                else:
+                    x_train = np.concatenate((x_train, ))
+                    y_train = np.concatenate((y_train, ))
                 del x_train_h
                 del x_train_nh
                 del y_train_h
@@ -161,7 +185,7 @@ def explicitTrain(
 
 def openSegmentationDatasets(datasetDir: str):
     humanDataset = SegmentationDataset(os.path.join(datasetDir, 'human'), 61600, shuffle=True)
-    activeLearningDataset = SegmentationDataset(os.path.join(datasetDir, 'activeLearning'), 20, shuffle=True)
+    activeLearningDataset = SegmentationDataset(os.path.join(datasetDir, 'activeLearning'), 11, shuffle=True)
     nonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'nonHuman'), 28320, shuffle=True)
     valHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valHuman'), 2693, shuffle=True)
     valNonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valNonHuman'), 2259, shuffle=True)
