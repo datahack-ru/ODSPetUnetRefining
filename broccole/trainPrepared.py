@@ -6,6 +6,7 @@
 import argparse
 import os
 import tensorflow as tf
+# import tensorflow_addons as tfa
 import numpy as np
 import gc
 import logging
@@ -34,7 +35,7 @@ def parse_args():
     parser.add_argument('--batchSize', help='batch size', type=int, default=8)
     parser.add_argument('--epochs', help='epochs count', type=int, default=1)
     parser.add_argument('--startEpoch', help='start epoch', type=int, default=0)
-    parser.add_argument('--learningRate', help='learning rate', type=float, default=0.001)
+    parser.add_argument('--learningRate', help='learning rate', type=float, default=0.001) #1e-4)
     parser.add_argument('--checkpointFilePath', help='path to checkpoint', type=str)
     args = parser.parse_args()
     return args
@@ -46,6 +47,7 @@ def save_model(model, trainingDir, modelEncoder, packetIndex):
                                "u-net-{}_{}_{}-{}-{}_{}.chpt".format(modelEncoder, now.day, now.hour, now.minute,
                                                                      now.second, packetIndex))
     model.save_weights(weightsPath)
+    # model.save(weightsPath)
     logger.info('model saved at %s', weightsPath)
 
 
@@ -59,9 +61,10 @@ def train(
         modelEncoder: str,
         batchSize: int = 1,
         epochs: int = 1,
-        startEpoch: int = 0
+        startEpoch: int = 0,
+        imageSize = 224
 ):
-    imageSize = 224
+
 
     validationPacketSize = 16 * 16
     x_val_h, y_val_h = valHumanDataset.readBatch(validationPacketSize)
@@ -99,11 +102,11 @@ def explicitTrain(
         valNonHumanDataset: SegmentationDataset,
         trainingDir: str,
         modelEncoder: str,
+        imageSize = 224,
         batchSize: int = 1,
         epochs: int = 1,
         startEpoch: int = 0
 ):
-    imageSize = 224
 
     validationPacketSize = 16 * 16
     x_val_h, y_val_h = valHumanDataset.readBatch(validationPacketSize)
@@ -121,7 +124,7 @@ def explicitTrain(
     SAVE_AFTER_NUMBER = 50000
     packetSize = 16 * 16
     nonHumanPacketSize = max((packetSize * len(nonHumanDataset)) // len(humanDataset), 1)
-    csv_logger = CSVLogger('training.log')
+    csv_logger = CSVLogger('training.log', append=True)
 
     for epoch in range(startEpoch, epochs):
         logger.info('epoch %d', epoch)
@@ -138,6 +141,7 @@ def explicitTrain(
                                                                       augmentations.resize_transforms(imageSize))
                 logger.debug('reading human batch, memory used %f', usedMemory())
                 x_train_nh, y_train_nh = nonHumanDataset.readBatch(nonHumanPacketSize)
+
                 x_train_nh, y_train_nh = augmentations.appendTransforms(x_train_nh, y_train_nh,
                                                                         augmentations.train_transforms_after_resize,
                                                                         augmentations.resize_transforms(imageSize))
@@ -155,8 +159,6 @@ def explicitTrain(
                 # x_train = x_train / 255
                 logger.debug('preprocess x_train, memory used %f', usedMemory())
 
-                saveModel = ((humanDataset.index + nonHumanDataset.index) % SAVE_AFTER_NUMBER) < (packetSize + nonHumanPacketSize)
-
                 logger.debug('start train on %d samples, memory used %f', len(x_train), usedMemory())
                 model.fit(
                     x=x_train,
@@ -167,13 +169,18 @@ def explicitTrain(
                     validation_data=(x_val, y_val),
                     callbacks=[csv_logger]
                 )
+
+                saveModel = ((humanDataset.index + nonHumanDataset.index) % SAVE_AFTER_NUMBER) < (
+                            packetSize + nonHumanPacketSize)
                 if saveModel:
                     save_model(model, trainingDir, modelEncoder, packetIndex)
+
                 del x_train
                 del y_train
                 logger.debug('trained on %d samples, memory used %f', humanDataset.index + nonHumanDataset.index,
                              usedMemory())
-                gc.collect()
+                # gc.collect()
+
                 # objgraph.show_most_common_types(limit=50)
                 # obj = objgraph.by_type('list')[1000]
                 # objgraph.show_backrefs(obj, max_depth=10)
@@ -208,6 +215,7 @@ def explicitTrain(
 
             del x_train
             del y_train
+            gc.collect()
             logger.info('epoch %d is trained', epoch)
         except Exception as e:
             logger.error('Exception %s', str(e))
@@ -235,11 +243,12 @@ def loadCocoDataset(cocoAnnotations, datasetDir: str, classes: List = None, nonC
     return dataset
 
 
-def openSegmentationDatasets(datasetDir: str):
-    humanDataset = SegmentationDataset(os.path.join(datasetDir, 'human'), 61600, shuffle=True)
-    nonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'nonHuman'), 28320, shuffle=True)
-    valHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valHuman'), 2693, shuffle=True)
-    valNonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valNonHuman'), 2259, shuffle=True)
+def openSegmentationDatasets(datasetDir: str, train_h_number=61600, train_nh_number=28320,
+                             val_h_number=2693, val_nh_number=2259):
+    humanDataset = SegmentationDataset(os.path.join(datasetDir, 'human'), train_h_number, shuffle=True)
+    nonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'nonHuman'), train_nh_number, shuffle=True)
+    valHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valHuman'), val_h_number, shuffle=True)
+    valNonHumanDataset = SegmentationDataset(os.path.join(datasetDir, 'valNonHuman'), val_nh_number, shuffle=True)
     return humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset
 
 
@@ -257,25 +266,35 @@ def main():
     modelEncoder = args.modelEncoder
 
     # efficientNet sizes: 224, 240, 260, 300, 380, 456, 528, 600
-    # efficientNet optimizer: RMSProp, decay 0.9 and momentum 0.9; batch norm momentum 0.99, weight decay 1e-5; initial learning rate 0.256 that decays by 0.97 every 2.4 epochs
+    # efficientNet optimizer: RMSprop, decay 0.9 and momentum 0.9; batch norm momentum 0.99, weight decay 1e-5; initial learning rate 0.256 that decays by 0.97 every 2.4 epochs
     # efficientNet special strategy: stochastic depth with survival probability 0.8, model size dependant dropout
+    # if modelEncoder == 'resnet18':
+    # optimizer = tfa.keras.optimizers.AdamW(
     optimizer = tf.keras.optimizers.Adam(
-        lr=learningRate,
-        # beta_1=0.9,
-        # beta_2=0.999,
-        # epsilon=1e-07,
-        # amsgrad=False,
-        # name='Adam'
-    )
+            lr=learningRate,
+            # beta_1=0.9,
+            # beta_2=0.999,
+            # epsilon=1e-07,
+            # amsgrad=False,
+            # name='Adam'
+        )
+    # else: #modelEncoder == 'efficientNet3':
+    #     optimizer = tf.keras.optimizers.RMSprop(
+    #         lr=learningRate,
+    #         momentum=0.9
+    #     )
 
     model, preprocess_input = makeModel(optimizer, modelEncoder)
     if checkpointFilePath is not None:
         model.load_weights(checkpointFilePath)
+        # model = tf.saved_model.load(checkpointFilePath)
         logger.info('model weights from %s are loaded', checkpointFilePath)
 
-    humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset = openSegmentationDatasets(datasetDir)
+    humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset = openSegmentationDatasets(datasetDir)   #,train_nh_number=0)
     explicitTrain(model, preprocess_input, humanDataset, nonHumanDataset, valHumanDataset, valNonHumanDataset,
-                  trainingDir, modelEncoder, args.batchSize, args.epochs, args.startEpoch)
+                    trainingDir, modelEncoder, imageSize=320, batchSize=args.batchSize,
+                    epochs=args.epochs, startEpoch=args.startEpoch
+                  )
 
 
 if __name__ == '__main__':

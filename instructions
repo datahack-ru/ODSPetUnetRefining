@@ -1,0 +1,14 @@
+https://cocodataset.org
+train2017 val2017 annotations2017
+
+1. python3 -m broccole.prepareDataset --datasetDir <data>          - подготовка картинок (фильтруем с людьми), и масок из аннотаций
+ cocoDataset готовит из картинок и json пары картинок 
+ SegmentationDataset - результат  работы cocoDataset
+ 
+2. python3 -m broccole.trainPrepared --datasetDir data --trainingDir data/trained --epochs 4 --modelEncoder efficientnetb3    |resnet18               - обучение модели
+convertToOnnx - конвертирование модели из Tf/PyTorch в универсальный портируемый формат onnx
+
+3. python3 -m broccole.trainPrepared --datasetDir data --trainingDir data/trained --epochs 3 --modelEncoder efficientnetb3 --checkpointFilePath data/trained/u-net-efficientnetb3_25_13-54-57_134.chpt
+-обучение с чекпойнта
+
+4. python3 -m broccole.webcamModelInference --modelFilePath data/model/efficientnet   |resnet                                                      - запуск обученной модели
